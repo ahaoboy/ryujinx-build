@@ -38,13 +38,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: download
         shell: msys2 {0}
+        id: build
         run: |
           # powershell ./build.ps1
           bash ./build.sh
 
       - name: release
         uses: ncipollo/release-action@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag: ${{ steps.build.outputs.tag }}
           artifacts: "dist/*.zip"
           allowUpdates: true

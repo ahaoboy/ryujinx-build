@@ -75,3 +75,5 @@ zip -r -q ../dist/$filename .
 
 # List contents of '../dist' from the current directory
 ls ../dist
+
+echo "tag=$latestTag" >> $GITHUB_OUTPUT
