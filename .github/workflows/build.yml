@@ -3,6 +3,10 @@ name: build
 permissions:
   contents: write
 
+defaults:
+  run:
+    shell: bash --noprofile --norc -CeEuo pipefail {0}
+
 on:
   push:
     tags:
@@ -24,7 +28,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: download
         run: |
-          powershell ./build.ps1
+          # powershell ./build.ps1
+          bash ./build.sh
 
       - name: release
         uses: ncipollo/release-action@v1
