@@ -26,7 +26,18 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          path-type: inherit
+          install: >-
+            zip
+            unzip
+            curl
+      - uses: actions/checkout@v4
       - name: download
+        shell: msys2 {0}
         run: |
           # powershell ./build.ps1
           bash ./build.sh
