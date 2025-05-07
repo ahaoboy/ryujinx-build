@@ -2,4 +2,6 @@ All firmware packages, keys, and other resources referenced in this repository a
 
 https://darthsternie.net/switch-firmwares/
 
+https://prodkeys.net/yuzu-prod-keys-n4/
+
 https://github.com/Ryubing/Stable-Releases
