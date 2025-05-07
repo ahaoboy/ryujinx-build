@@ -70,8 +70,8 @@ ls ../ProdKeys/ProdKeys.net-v19.0.1
 cp -r ../ProdKeys/ProdKeys.net-v19.0.1/*.keys ./portable/system
 cp -r ../Firmware/* ./portable/bis/system/Contents/registered
 
-# Zip the current directory to '../dist/ryujinx.zip'
-zip -r -q ../dist/ryujinx.zip .
+rm ../dist/$filename
+zip -r -q ../dist/$filename .
 
 # List contents of '../dist' from the current directory
 ls ../dist
