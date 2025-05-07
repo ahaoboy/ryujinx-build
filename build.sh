@@ -72,12 +72,12 @@ cp -r ../Firmware/* ./portable/bis/system/Contents/registered
 
 # rename Firmware
 for file in ./portable/bis/system/Contents/registered/*; do
-    filename=$(basename "$file")
+    nca=$(basename "$file")
 
-    if [[ $filename == *.cnmt.nca ]]; then
-        xxx=${filename%.cnmt.nca}
-    elif [[ $filename == *.nca ]]; then
-        xxx=${filename%.nca}
+    if [[ $nca == *.cnmt.nca ]]; then
+        xxx=${nca%.cnmt.nca}
+    elif [[ $nca == *.nca ]]; then
+        xxx=${nca%.nca}
     else
         continue
     fi
