@@ -70,6 +70,26 @@ ls ../ProdKeys/ProdKeys.net-v19.0.1
 cp -r ../ProdKeys/ProdKeys.net-v19.0.1/*.keys ./portable/system
 cp -r ../Firmware/* ./portable/bis/system/Contents/registered
 
+# rename Firmware
+for file in ./portable/bis/system/Contents/registered/*; do
+    filename=$(basename "$file")
+
+    if [[ $filename == *.cnmt.nca ]]; then
+        xxx=${filename%.cnmt.nca}
+    elif [[ $filename == *.nca ]]; then
+        xxx=${filename%.nca}
+    else
+        continue
+    fi
+
+    mv "$file" "00"
+
+    folder="./portable/bis/system/Contents/registered/$xxx.nca"
+    mkdir "$folder"
+
+    mv "00" "$folder/00"
+done
+
 rm ../dist/$filename
 zip -r -q ../dist/$filename .
 
