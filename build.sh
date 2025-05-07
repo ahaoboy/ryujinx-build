@@ -21,7 +21,7 @@ latestTag=$(echo "$allTags" | jq -r '.[0].name')
 echo "latest tag: $latestTag"
 
 # Define filename and construct download URL
-filename="ryujinx-win_x64.zip"
+filename="ryujinx-$latestTag-win_x64.zip"
 downloadUrl="https://github.com/$owner/$repo/releases/download/$latestTag/$filename"
 echo "download $downloadUrl"
 
@@ -37,13 +37,13 @@ ls dist
 # Extract the downloaded zip files
 unzip -q "dist/ProdKeys.net-v19.0.1.zip" -d "ProdKeys"
 unzip -q "dist/Firmware.19.0.1.zip" -d "Firmware"
-unzip -q "dist/ryujinx-win_x64.zip" -d "ryujinx-win"
+unzip -q "dist/$filename" -d "ryujinx-win"
 
 # Move the 'publish' directory to 'ryujinx'
 mv ./ryujinx-win/publish ./ryujinx
 
 # Create 'portable' directory inside 'ryujinx'
-mkdir ryujinx/portable
+mkdir ./ryujinx/portable
 
 # Change to the 'ryujinx' directory
 cd ryujinx
