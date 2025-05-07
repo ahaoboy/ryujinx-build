@@ -64,11 +64,11 @@ kill $pid
 ls portable
 
 ls ../ProdKeys/ProdKeys.net-v19.0.1
-ls ../Firmware
+# ls ../Firmware
 
 # Copy files to their respective directories
-cp -r "../ProdKeys/ProdKeys.net-v19.0.1/*.keys" ./portable/system
-cp -r "../Firmware/*" ./portable/bis/system/Contents/registered
+cp -r ../ProdKeys/ProdKeys.net-v19.0.1/*.keys ./portable/system
+cp -r ../Firmware/* ./portable/bis/system/Contents/registered
 
 # Zip the current directory to '../dist/ryujinx.zip'
 zip -r -q ../dist/ryujinx.zip .
