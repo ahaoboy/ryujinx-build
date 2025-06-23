@@ -15,14 +15,24 @@ curl -L -o ProdKeys.net-v19.0.1.zip https://files.prodkeys.net/ProdKeys.net-v19.
 curl -L -o Firmware.19.0.1.zip https://github.com/THZoria/NX_Firmware/releases/download/19.0.1/Firmware.19.0.1.zip
 
 # Fetch the latest tag from GitHub API
-tagsUrl="https://api.github.com/repos/$owner/$repo/tags"
+# tagsUrl="https://api.github.com/repos/$owner/$repo/tags"
+# allTags=$(curl -s -H "User-Agent: Bash" "$tagsUrl")
+# latestTag=$(echo "$allTags" | jq -r '.[0].name')
+# echo "latest tag: $latestTag"
+# Define filename and construct download URL
+# filename="ryujinx-$latestTag-win_x64.zip"
+# downloadUrl="https://github.com/$owner/$repo/releases/download/$latestTag/$filename"
+# echo "download $downloadUrl"
+
+# Fetch the latest tag from Ryujinx API
+tagsUrl="https://git.ryujinx.app/api/v4/projects/ryubing%2Fryujinx/releases"
 allTags=$(curl -s -H "User-Agent: Bash" "$tagsUrl")
-latestTag=$(echo "$allTags" | jq -r '.[0].name')
+latestTag=$(echo "$allTags" | jq -r '.[0].tag_name')
 echo "latest tag: $latestTag"
 
 # Define filename and construct download URL
 filename="ryujinx-$latestTag-win_x64.zip"
-downloadUrl="https://github.com/$owner/$repo/releases/download/$latestTag/$filename"
+downloadUrl="https://git.ryujinx.app/ryubing/ryujinx/-/releases/$latestTag/downloads/$filename"
 echo "download $downloadUrl"
 
 # Download the file
