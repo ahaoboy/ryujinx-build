@@ -32,7 +32,7 @@ echo "latest tag: $latestTag"
 
 # Define filename and construct download URL
 filename="ryujinx-$latestTag-win_x64.zip"
-downloadUrl="https://git.ryujinx.app/ryubing/ryujinx/-/releases/$latestTag/downloads/$filename"
+downloadUrl="https://git.ryujinx.app/api/v4/projects/1/packages/generic/Ryubing/$latestTag/$filename"
 echo "download $downloadUrl"
 
 # Download the file
