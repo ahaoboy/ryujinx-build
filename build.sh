@@ -100,6 +100,9 @@ for file in ./portable/bis/system/Contents/registered/*; do
     mv "00" "$folder/00"
 done
 
+# add games dir
+sed -i 's/"game_dirs": \[\]/"game_dirs": ["portable\/games"]/g' ./portable/Config.json
+
 rm ../dist/$filename
 zip -r -q ../dist/$filename .
 
