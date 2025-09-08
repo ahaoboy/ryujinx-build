@@ -5,3 +5,5 @@ https://darthsternie.net/switch-firmwares/
 https://prodkeys.net/yuzu-prod-keys-n4/
 
 https://github.com/Ryubing/Stable-Releases
+
+https://git.ryujinx.app/ryubing/ryujinx
