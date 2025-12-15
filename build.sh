@@ -4,15 +4,45 @@
 owner='Ryubing'
 repo='Stable-Releases'
 
+# Default version (used for portable)
+DEFAULT_VERSION='21.0.0'
+
+# Array of versions to download
+declare -a VERSIONS=('19.0.1' '20.5.0' '21.0.0')
+
 # Create the 'dist' directory
-mkdir dist
+mkdir -p dist
 
 # Change to the 'dist' directory
 cd dist
 
-# Download zip files using curl
-curl -L -o ProdKeys.net-v19.0.1.zip https://files.prodkeys.net/ProdKeys.net-v19.0.1.zip
-curl -L -o Firmware.19.0.1.zip https://github.com/THZoria/NX_Firmware/releases/download/19.0.1/Firmware.19.0.1.zip
+# Download zip files for each version
+for version in "${VERSIONS[@]}"; do
+    case $version in
+        19.0.1)
+            prodkeys_url="https://files.prodkeys.net/ProdKeys.net-v19.0.1.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/19.0.1/Firmware.19.0.1.zip"
+            prodkeys_file="ProdKeys.net-v19.0.1.zip"
+            firmware_file="Firmware.19.0.1.zip"
+            ;;
+        20.5.0)
+            prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v20.5.0.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/20.5.0/Firmware.20.5.0.zip"
+            prodkeys_file="ProdKeys.NET-v20.5.0.zip"
+            firmware_file="Firmware.20.5.0.zip"
+            ;;
+        21.0.0)
+            prodkeys_url="https://files.prodkeys.net/Prodkeys.NET_v21-0-0.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/21.0.0/Firmware.21.0.0.zip"
+            prodkeys_file="Prodkeys.NET_v21-0-0.zip"
+            firmware_file="Firmware.21.0.0.zip"
+            ;;
+    esac
+    
+    echo "Downloading files for version $version..."
+    curl -L -o "$prodkeys_file" "$prodkeys_url"
+    curl -L -o "$firmware_file" "$firmware_url"
+done
 
 # Fetch the latest tag from GitHub API
 # tagsUrl="https://api.github.com/repos/$owner/$repo/tags"
@@ -45,8 +75,8 @@ cd ..
 ls dist
 
 # Extract the downloaded zip files
-unzip -q "dist/ProdKeys.net-v19.0.1.zip" -d "ProdKeys"
-unzip -q "dist/Firmware.19.0.1.zip" -d "Firmware"
+unzip -q "dist/Prodkeys.NET_v21-0-0.zip" -d "ProdKeys_21"
+unzip -q "dist/Firmware.21.0.0.zip" -d "Firmware_21"
 unzip -q "dist/$filename" -d "ryujinx-win"
 
 # Move the 'publish' directory to 'ryujinx'
@@ -73,12 +103,12 @@ kill $pid
 # List contents of 'portable'
 ls portable
 
-ls ../ProdKeys/ProdKeys.net-v19.0.1
-# ls ../Firmware
+ls ../ProdKeys_21/Prodkeys.NET_v21-0-0
+# ls ../Firmware_21
 
 # Copy files to their respective directories
-cp -r ../ProdKeys/ProdKeys.net-v19.0.1/*.keys ./portable/system
-cp -r ../Firmware/* ./portable/bis/system/Contents/registered
+cp -r ../ProdKeys_21/Prodkeys.NET_v21-0-0/*.keys ./portable/system
+cp -r ../Firmware_21/* ./portable/bis/system/Contents/registered
 
 # rename Firmware
 for file in ./portable/bis/system/Contents/registered/*; do
