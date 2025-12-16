@@ -38,7 +38,7 @@ for version in "${VERSIONS[@]}"; do
             firmware_file="Firmware.21.0.0.zip"
             ;;
     esac
-    
+
     echo "Downloading files for version $version..."
     curl -L -o "$prodkeys_file" "$prodkeys_url"
     curl -L -o "$firmware_file" "$firmware_url"
@@ -103,11 +103,11 @@ kill $pid
 # List contents of 'portable'
 ls portable
 
-ls ../ProdKeys_21/Prodkeys.NET_v21-0-0
+ls ../ProdKeys_21
 # ls ../Firmware_21
 
 # Copy files to their respective directories
-cp -r ../ProdKeys_21/Prodkeys.NET_v21-0-0/*.keys ./portable/system
+cp -r ../ProdKeys_21/*.keys ./portable/system
 cp -r ../Firmware_21/* ./portable/bis/system/Contents/registered
 
 # rename Firmware
