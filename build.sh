@@ -8,7 +8,7 @@ repo='Stable-Releases'
 DEFAULT_VERSION='21.0.0'
 
 # Array of versions to download
-declare -a VERSIONS=('19.0.1' '20.5.0' '21.0.0')
+declare -a VERSIONS=('19.0.1' '20.5.0' '21.0.0' '22.0.0')
 
 # Create the 'dist' directory
 mkdir -p dist
