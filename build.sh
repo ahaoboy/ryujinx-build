@@ -37,6 +37,12 @@ for version in "${VERSIONS[@]}"; do
             prodkeys_file="Prodkeys.NET_v21-0-0.zip"
             firmware_file="Firmware.21.0.0.zip"
             ;;
+        v22.0.0)
+            prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.0.0.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.0.0/Firmware.22.0.0.zip"
+            prodkeys_file="ProdKeys.NET-v22.0.0.zip"
+            firmware_file="Firmware.22.0.0.zip"
+            ;;
     esac
 
     echo "Downloading files for version $version..."
