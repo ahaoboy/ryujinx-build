@@ -139,6 +139,9 @@ done
 # add games dir
 sed -i 's/"game_dirs": \[\]/"game_dirs": ["portable\/games"]/g' ./portable/Config.json
 
+# set graphics backend to Vulkan
+sed -i 's/"graphics_backend": "[^"]*"/"graphics_backend": "Vulkan"/g' ./portable/Config.json
+
 rm ../dist/$filename
 zip -r -q ../dist/$filename .
 
