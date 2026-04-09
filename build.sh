@@ -81,7 +81,7 @@ cd ..
 ls dist
 
 # Extract the downloaded zip files
-unzip -q "dist/Prodkeys.NET_v21-0-0.zip" -d "ProdKeys_21"
+unzip -q "dist/Prodkeys.NET-v21-0-0.zip" -d "ProdKeys_21"
 unzip -q "dist/Firmware.21.0.0.zip" -d "Firmware_21"
 unzip -q "dist/$filename" -d "ryujinx-win"
 
