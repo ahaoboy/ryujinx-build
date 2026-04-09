@@ -34,7 +34,7 @@ for version in "${VERSIONS[@]}"; do
         21.0.0)
             prodkeys_url="https://files.prodkeys.net/Prodkeys.NET_v21-0-0.zip"
             firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/21.0.0/Firmware.21.0.0.zip"
-            prodkeys_file="Prodkeys.NET_v21-0-0.zip"
+            prodkeys_file="Prodkeys.NET-v21-0-0.zip"
             firmware_file="Firmware.21.0.0.zip"
             ;;
         22.0.0)
