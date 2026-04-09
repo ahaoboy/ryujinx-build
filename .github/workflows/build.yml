@@ -40,7 +40,6 @@ jobs:
         shell: msys2 {0}
         id: build
         run: |
-          # powershell ./build.ps1
           bash ./build.sh
 
       - name: release
@@ -49,3 +48,20 @@ jobs:
           tag: ${{ steps.build.outputs.tag }}
           artifacts: "dist/*.zip"
           allowUpdates: true
+
+
+      - name: Update readme
+        run: |
+          # Replace first line with current time comment, keep rest as-is
+          echo "<!-- $(date -u '+%Y-%m-%d %H:%M:%S UTC') -->" > readme_new.md
+          tail -n +2 README.md >> readme_new.md
+          mv readme_new.md README.md
+          cat README.md
+
+      - name: Commit and push readme
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || (git commit -m "chore: update readme with build time" && git push)
+

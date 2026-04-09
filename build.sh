@@ -1,125 +1,110 @@
 #!/bin/bash
+set -euo pipefail
 
-# Define variables
-owner='Ryubing'
-repo='Stable-Releases'
+# ============================================================
+# Build a portable Ryujinx (bundled prodkeys + firmware)
+# Usage: ./build.sh [version]   # defaults to DEFAULT_VERSION
+# ============================================================
 
-# Default version (used for portable)
-DEFAULT_VERSION='21.0.0'
+# Default version: prodkeys / firmware version bundled into the final archive
+DEFAULT_VERSION='22.1.0'
+TARGET_VERSION="${1:-$DEFAULT_VERSION}"
 
-# Array of versions to download
-declare -a VERSIONS=('19.0.1' '20.5.0' '21.0.0' '22.0.0')
+log() { echo "[build] $*"; }
 
-# Create the 'dist' directory
+# ---------- 1. Resolve the latest Ryujinx version ----------
+releases_url="https://git.ryujinx.app/api/v1/repos/projects/Ryubing/releases/latest"
+
+# The endpoint returns a SINGLE object (not an array), so read .tag_name
+# directly. The win_x64 asset URL comes straight from the API response so
+# the filename always matches what the server actually hosts.
+json=$(curl -sf -H "User-Agent: Bash" "$releases_url")
+latest_tag=$(jq -r '.tag_name' <<< "$json")
+filename=$(jq -r '.assets[] | select(.name | contains("win_x64")) | .name' <<< "$json")
+download_url=$(jq -r '.assets[] | select(.name | contains("win_x64")) | .browser_download_url' <<< "$json")
+
+if [[ -z "$latest_tag" || "$latest_tag" == "null" \
+    || -z "$filename" || "$filename" == "null" \
+    || -z "$download_url" || "$download_url" == "null" ]]; then
+    echo "ERROR: could not resolve the latest release" >&2
+    exit 1
+fi
+log "latest Ryujinx tag: $latest_tag"
+
+# ---------- 2. Resolve prodkeys / firmware URLs for the target version ----------
+case "$TARGET_VERSION" in
+    19.0.1)
+        prodkeys_url="https://files.prodkeys.net/ProdKeys.net-v19.0.1.zip"
+        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/19.0.1/Firmware.19.0.1.zip"
+        ;;
+    20.5.0)
+        prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v20.5.0.zip"
+        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/20.5.0/Firmware.20.5.0.zip"
+        ;;
+    21.0.0)
+        prodkeys_url="https://files.prodkeys.net/Prodkeys.NET_v21-0-0.zip"
+        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/21.0.0/Firmware.21.0.0.zip"
+        ;;
+    22.0.0)
+        prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.0.0.zip"
+        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.0.0/Firmware.22.0.0.zip"
+        ;;
+    22.1.0)
+        prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.1.0.zip"
+        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.1.0/Firmware.22.1.0.zip"
+        ;;
+    *)
+        echo "ERROR: unsupported version '$TARGET_VERSION' (supported: 19.0.1 20.5.0 21.0.0 22.0.0 22.1.0)" >&2
+        exit 1
+        ;;
+esac
+
+prodkeys_zip="${prodkeys_url##*/}"
+firmware_zip="${firmware_url##*/}"
+log "target prodkeys / firmware version: $TARGET_VERSION"
+
+# ---------- 3. Download ----------
 mkdir -p dist
+log "downloading Ryujinx: $filename"
+curl -fL --retry 3 -o "dist/$filename" "$download_url"
+log "downloading prodkeys: $prodkeys_zip"
+curl -fL --retry 3 -o "dist/$prodkeys_zip" "$prodkeys_url"
+log "downloading firmware: $firmware_zip"
+curl -fL --retry 3 -o "dist/$firmware_zip" "$firmware_url"
 
-# Change to the 'dist' directory
-cd dist
+# ---------- 4. Extract ----------
+rm -rf ryujinx ryujinx-win ProdKeys Firmware
+unzip -q "dist/$prodkeys_zip" -d ProdKeys
+unzip -q "dist/$firmware_zip" -d Firmware
+unzip -q "dist/$filename" -d ryujinx-win
 
-# Download zip files for each version
-for version in "${VERSIONS[@]}"; do
-    case $version in
-        19.0.1)
-            prodkeys_url="https://files.prodkeys.net/ProdKeys.net-v19.0.1.zip"
-            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/19.0.1/Firmware.19.0.1.zip"
-            prodkeys_file="ProdKeys.net-v19.0.1.zip"
-            firmware_file="Firmware.19.0.1.zip"
-            ;;
-        20.5.0)
-            prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v20.5.0.zip"
-            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/20.5.0/Firmware.20.5.0.zip"
-            prodkeys_file="ProdKeys.NET-v20.5.0.zip"
-            firmware_file="Firmware.20.5.0.zip"
-            ;;
-        21.0.0)
-            prodkeys_url="https://files.prodkeys.net/Prodkeys.NET_v21-0-0.zip"
-            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/21.0.0/Firmware.21.0.0.zip"
-            prodkeys_file="Prodkeys.NET-v21-0-0.zip"
-            firmware_file="Firmware.21.0.0.zip"
-            ;;
-        22.0.0)
-            prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.0.0.zip"
-            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.0.0/Firmware.22.0.0.zip"
-            prodkeys_file="ProdKeys.NET-v22.0.0.zip"
-            firmware_file="Firmware.22.0.0.zip"
-            ;;
-    esac
-
-    echo "Downloading files for version $version..."
-    curl -L -o "$prodkeys_file" "$prodkeys_url"
-    curl -L -o "$firmware_file" "$firmware_url"
-done
-
-# Fetch the latest tag from GitHub API
-# tagsUrl="https://api.github.com/repos/$owner/$repo/tags"
-# allTags=$(curl -s -H "User-Agent: Bash" "$tagsUrl")
-# latestTag=$(echo "$allTags" | jq -r '.[0].name')
-# echo "latest tag: $latestTag"
-# Define filename and construct download URL
-# filename="ryujinx-$latestTag-win_x64.zip"
-# downloadUrl="https://github.com/$owner/$repo/releases/download/$latestTag/$filename"
-# echo "download $downloadUrl"
-
-# Fetch the latest tag from Ryujinx API
-tagsUrl="https://git.ryujinx.app/api/v4/projects/ryubing%2Fryujinx/releases"
-allTags=$(curl -s -H "User-Agent: Bash" "$tagsUrl")
-latestTag=$(echo "$allTags" | jq -r '.[0].tag_name')
-echo "latest tag: $latestTag"
-
-# Define filename and construct download URL
-filename="ryujinx-$latestTag-win_x64.zip"
-downloadUrl="https://git.ryujinx.app/api/v4/projects/1/packages/generic/Ryubing/$latestTag/$filename"
-echo "download $downloadUrl"
-
-# Download the file
-curl -L -o "$filename" "$downloadUrl"
-
-# Return to the parent directory
-cd ..
-
-# List contents of 'dist' (using ls, assuming it's an alias or available)
-ls dist
-
-# Extract the downloaded zip files
-unzip -q "dist/Prodkeys.NET_v21-0-0.zip" -d "ProdKeys_21"
-unzip -q "dist/Firmware.21.0.0.zip" -d "Firmware_21"
-unzip -q "dist/$filename" -d "ryujinx-win"
-
-# Move the 'publish' directory to 'ryujinx'
 mv ./ryujinx-win/publish ./ryujinx
+mkdir -p ./ryujinx/portable
 
-# Create 'portable' directory inside 'ryujinx'
-mkdir ./ryujinx/portable
-
-# Change to the 'ryujinx' directory
+# ---------- 5. First run to generate the portable config ----------
 cd ryujinx
-
-# Run Ryujinx.exe in the background and capture its PID
-# Note: If running on Linux, you may need Wine (e.g., 'wine ./Ryujinx.exe &')
-
-./Ryujinx.exe &
+# On Linux, wine is required (wine ./Ryujinx.exe &)
+if command -v wine >/dev/null 2>&1; then
+    wine ./Ryujinx.exe &
+else
+    ./Ryujinx.exe &
+fi
 pid=$!
-
-# Wait for 10 seconds
 sleep 10
+kill "$pid" 2>/dev/null || true
 
-# Terminate the process
-kill $pid
+# ---------- 6. Install prodkeys / firmware ----------
+system_dir="./portable/system"
+registered_dir="./portable/bis/system/Contents/registered"
+mkdir -p "$system_dir" "$registered_dir"
 
-# List contents of 'portable'
-ls portable
+cp -r ../ProdKeys/*.keys "$system_dir/"
+cp -r ../Firmware/* "$registered_dir/"
 
-ls ../ProdKeys_21
-# ls ../Firmware_21
-
-# Copy files to their respective directories
-cp -r ../ProdKeys_21/*.keys ./portable/system
-cp -r ../Firmware_21/* ./portable/bis/system/Contents/registered
-
-# rename Firmware
-for file in ./portable/bis/system/Contents/registered/*; do
+# Reorganize firmware NCAs into <id>.nca/00 directory structure
+cd "$registered_dir"
+for file in *; do
     nca=$(basename "$file")
-
     if [[ $nca == *.cnmt.nca ]]; then
         xxx=${nca%.cnmt.nca}
     elif [[ $nca == *.nca ]]; then
@@ -127,25 +112,25 @@ for file in ./portable/bis/system/Contents/registered/*; do
     else
         continue
     fi
-
-    mv "$file" "00"
-
-    folder="./portable/bis/system/Contents/registered/$xxx.nca"
-    mkdir "$folder"
-
-    mv "00" "$folder/00"
+    mkdir -p "$xxx.nca"
+    mv "$file" "$xxx.nca/00"
 done
+cd - >/dev/null
 
-# add games dir
-sed -i 's/"game_dirs": \[\]/"game_dirs": ["portable\/games"]/g' ./portable/Config.json
+# ---------- 7. Tweak the config ----------
+config="./portable/Config.json"
+sed -i 's/"game_dirs": \[\]/"game_dirs": ["portable\/games"]/g' "$config"
+sed -i 's/"graphics_backend": "[^"]*"/"graphics_backend": "Vulkan"/g' "$config"
 
-# set graphics backend to Vulkan
-sed -i 's/"graphics_backend": "[^"]*"/"graphics_backend": "Vulkan"/g' ./portable/Config.json
+# ---------- 8. Repack ----------
+cd ..
+rm -f "dist/$filename"
+(cd ryujinx && zip -r -q "../dist/$filename" .)
+ls -lh dist
 
-rm ../dist/$filename
-zip -r -q ../dist/$filename .
+# ---------- 9. Output GitHub Actions variables ----------
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+    echo "tag=$latest_tag" >> "$GITHUB_OUTPUT"
+fi
 
-# List contents of '../dist' from the current directory
-ls ../dist
-
-echo "tag=$latestTag" >> $GITHUB_OUTPUT
+log "done: dist/$filename"
