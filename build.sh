@@ -10,7 +10,44 @@ set -euo pipefail
 DEFAULT_VERSION='22.1.0'
 TARGET_VERSION="${1:-$DEFAULT_VERSION}"
 
+# All firmware / prodkeys versions: every one is downloaded and kept in dist/
+VERSIONS=('19.0.1' '20.5.0' '21.0.0' '22.0.0' '22.1.0')
+
 log() { echo "[build] $*"; }
+
+# Map a firmware version to its prodkeys / firmware download URLs.
+# Sets globals: prodkeys_url, firmware_url, prodkeys_zip, firmware_zip
+resolve_urls() {
+    local version="$1"
+    case "$version" in
+        19.0.1)
+            prodkeys_url="https://files.prodkeys.net/ProdKeys.net-v19.0.1.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/19.0.1/Firmware.19.0.1.zip"
+            ;;
+        20.5.0)
+            prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v20.5.0.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/20.5.0/Firmware.20.5.0.zip"
+            ;;
+        21.0.0)
+            prodkeys_url="https://files.prodkeys.net/Prodkeys.NET_v21-0-0.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/21.0.0/Firmware.21.0.0.zip"
+            ;;
+        22.0.0)
+            prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.0.0.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.0.0/Firmware.22.0.0.zip"
+            ;;
+        22.1.0)
+            prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.1.0.zip"
+            firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.1.0/Firmware.22.1.0.zip"
+            ;;
+        *)
+            echo "ERROR: unsupported version '$version' (supported: ${VERSIONS[*]})" >&2
+            exit 1
+            ;;
+    esac
+    prodkeys_zip="${prodkeys_url##*/}"
+    firmware_zip="${firmware_url##*/}"
+}
 
 # ---------- 1. Resolve the latest Ryujinx version ----------
 releases_url="https://git.ryujinx.app/api/v1/repos/projects/Ryubing/releases/latest"
@@ -31,48 +68,45 @@ if [[ -z "$latest_tag" || "$latest_tag" == "null" \
 fi
 log "latest Ryujinx tag: $latest_tag"
 
-# ---------- 2. Resolve prodkeys / firmware URLs for the target version ----------
-case "$TARGET_VERSION" in
-    19.0.1)
-        prodkeys_url="https://files.prodkeys.net/ProdKeys.net-v19.0.1.zip"
-        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/19.0.1/Firmware.19.0.1.zip"
-        ;;
-    20.5.0)
-        prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v20.5.0.zip"
-        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/20.5.0/Firmware.20.5.0.zip"
-        ;;
-    21.0.0)
-        prodkeys_url="https://files.prodkeys.net/Prodkeys.NET_v21-0-0.zip"
-        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/21.0.0/Firmware.21.0.0.zip"
-        ;;
-    22.0.0)
-        prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.0.0.zip"
-        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.0.0/Firmware.22.0.0.zip"
-        ;;
-    22.1.0)
-        prodkeys_url="https://files.prodkeys.net/ProdKeys.NET-v22.1.0.zip"
-        firmware_url="https://github.com/THZoria/NX_Firmware/releases/download/22.1.0/Firmware.22.1.0.zip"
-        ;;
-    *)
-        echo "ERROR: unsupported version '$TARGET_VERSION' (supported: 19.0.1 20.5.0 21.0.0 22.0.0 22.1.0)" >&2
-        exit 1
-        ;;
-esac
-
-prodkeys_zip="${prodkeys_url##*/}"
-firmware_zip="${firmware_url##*/}"
+# ---------- 2. Download all firmwares / prodkeys ----------
+# Every zip stays in dist/: the CI release step publishes all dist/*.zip
+# as release assets, so they are kept intentionally.
+resolve_urls "$TARGET_VERSION"   # fail fast on an unsupported version
 log "target prodkeys / firmware version: $TARGET_VERSION"
-
-# ---------- 3. Download ----------
 mkdir -p dist
+for version in "${VERSIONS[@]}"; do
+    resolve_urls "$version"
+    log "downloading prodkeys ($version): $prodkeys_zip"
+    curl -fL --retry 3 -o "dist/$prodkeys_zip" "$prodkeys_url"
+    log "downloading firmware ($version): $firmware_zip"
+    curl -fL --retry 3 -o "dist/$firmware_zip" "$firmware_url"
+done
+
+# ---------- 3. Re-zip prodkeys with a flat layout ----------
+# Upstream prodkeys zips may nest the keys in subfolders (e.g. Keys-22.1.0/),
+# which breaks flat globs later in the build. Re-zip each one so every key
+# file sits at the archive root; the flattened zip replaces the original
+# under the same name in dist/.
+for version in "${VERSIONS[@]}"; do
+    resolve_urls "$version"
+    log "re-zipping $prodkeys_zip (flat layout)"
+    rm -rf rezip_tmp
+    mkdir -p rezip_tmp
+    unzip -q "dist/$prodkeys_zip" -d rezip_tmp
+    (cd rezip_tmp \
+        && find . -type f -exec mv -f {} . \; \
+        && find . -type d -empty -delete)
+    (cd rezip_tmp && zip -r -q -X "../dist/$prodkeys_zip.tmp" .)
+    mv -f "dist/$prodkeys_zip.tmp" "dist/$prodkeys_zip"
+    rm -rf rezip_tmp
+done
+
+# ---------- 4. Download Ryujinx ----------
 log "downloading Ryujinx: $filename"
 curl -fL --retry 3 -o "dist/$filename" "$download_url"
-log "downloading prodkeys: $prodkeys_zip"
-curl -fL --retry 3 -o "dist/$prodkeys_zip" "$prodkeys_url"
-log "downloading firmware: $firmware_zip"
-curl -fL --retry 3 -o "dist/$firmware_zip" "$firmware_url"
 
-# ---------- 4. Extract ----------
+# ---------- 5. Extract ----------
+resolve_urls "$TARGET_VERSION"
 rm -rf ryujinx ryujinx-win ProdKeys Firmware
 unzip -q "dist/$prodkeys_zip" -d ProdKeys
 unzip -q "dist/$firmware_zip" -d Firmware
@@ -81,7 +115,7 @@ unzip -q "dist/$filename" -d ryujinx-win
 mv ./ryujinx-win/publish ./ryujinx
 mkdir -p ./ryujinx/portable
 
-# ---------- 5. First run to generate the portable config ----------
+# ---------- 6. First run to generate the portable config ----------
 cd ryujinx
 # On Linux, wine is required (wine ./Ryujinx.exe &)
 if command -v wine >/dev/null 2>&1; then
@@ -93,7 +127,7 @@ pid=$!
 sleep 10
 kill "$pid" 2>/dev/null || true
 
-# ---------- 6. Install prodkeys / firmware ----------
+# ---------- 7. Install prodkeys / firmware ----------
 system_dir="./portable/system"
 registered_dir="./portable/bis/system/Contents/registered"
 mkdir -p "$system_dir" "$registered_dir"
@@ -125,18 +159,18 @@ for file in *; do
 done
 cd - >/dev/null
 
-# ---------- 7. Tweak the config ----------
+# ---------- 8. Tweak the config ----------
 config="./portable/Config.json"
 sed -i 's/"game_dirs": \[\]/"game_dirs": ["portable\/games"]/g' "$config"
 sed -i 's/"graphics_backend": "[^"]*"/"graphics_backend": "Vulkan"/g' "$config"
 
-# ---------- 8. Repack ----------
+# ---------- 9. Repack ----------
 cd ..
 rm -f "dist/$filename"
 (cd ryujinx && zip -r -q "../dist/$filename" .)
 ls -lh dist
 
-# ---------- 9. Output GitHub Actions variables ----------
+# ---------- 10. Output GitHub Actions variables ----------
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     echo "tag=$latest_tag" >> "$GITHUB_OUTPUT"
 fi
