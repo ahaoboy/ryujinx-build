@@ -98,8 +98,12 @@ system_dir="./portable/system"
 registered_dir="./portable/bis/system/Contents/registered"
 mkdir -p "$system_dir" "$registered_dir"
 
-cp -r ../ProdKeys/*.keys "$system_dir/"
-cp -r ../Firmware/* "$registered_dir/"
+# Prodkeys zips may nest the keys in subfolders (e.g. Keys-22.1.0/),
+# so find *.keys recursively instead of assuming a flat layout.
+find ../ProdKeys -name '*.keys' -type f -exec cp -f {} "$system_dir/" \;
+
+# Same for firmware: copy every .nca regardless of any nesting.
+find ../Firmware -name '*.nca' -type f -exec cp -f {} "$registered_dir/" \;
 
 # Reorganize firmware NCAs into <id>.nca/00 directory structure
 cd "$registered_dir"
