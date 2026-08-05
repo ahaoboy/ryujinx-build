@@ -15,7 +15,7 @@ on:
       - "main"
   pull_request:
   schedule:
-    - cron: "0 0 * * 1"
+    - cron: "0 0 1 * *"   # Monthly: run at 00:00 UTC on the 1st of each month
   workflow_dispatch:
 
 env:

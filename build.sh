@@ -139,13 +139,24 @@ find ../ProdKeys -name '*.keys' -type f -exec cp -f {} "$system_dir/" \;
 # Same for firmware: copy every .nca regardless of any nesting.
 find ../Firmware -name '*.nca' -type f -exec cp -f {} "$registered_dir/" \;
 
-# Reorganize firmware NCAs into <id>.nca/00 directory structure.
-# Move each file out of the way FIRST: firmware ships both <id>.nca and
-# <id>.cnmt.nca, so creating <id>.nca/ would otherwise collide with the
-# not-yet-moved <id>.nca file (mkdir: File exists).
+# Reorganize firmware NCAs into the <id>.nca/00 layout Ryujinx expects
+# for installed firmware titles.
+#
+# Why move each file away FIRST? Firmware ships BOTH <id>.nca and
+# <id>.cnmt.nca for the same title. If we created <id>.nca/ while the
+# plain <id>.nca file still exists, mkdir would fail with "File exists"
+# (a file and a folder cannot share the same name). Relocating the file
+# to a hidden temp name first sidesteps that entirely.
+# .nca_tmp is safe to reuse every iteration: real NCA names always end
+# in ".nca", so the temp name can never collide with an actual file.
 cd "$registered_dir"
 for file in *; do
     nca=$(basename "$file")
+
+    # Derive the title ID from the NCA filename:
+    #   <id>.cnmt.nca  ->  <id>   (control metadata; strip ".cnmt")
+    #   <id>.nca       ->  <id>   (regular content; strip ".nca")
+    # Anything else (subfolders, non-NCA files) is skipped.
     if [[ $nca == *.cnmt.nca ]]; then
         xxx=${nca%.cnmt.nca}
     elif [[ $nca == *.nca ]]; then
@@ -153,8 +164,12 @@ for file in *; do
     else
         continue
     fi
+
+    # 1. Move the file out of the way (prevents the mkdir collision above)
     mv "$file" ".nca_tmp"
+    # 2. Create the per-title folder
     mkdir -p "$xxx.nca"
+    # 3. Move the file into place as "00" (the content index inside a title)
     mv ".nca_tmp" "$xxx.nca/00"
 done
 cd - >/dev/null
