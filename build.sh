@@ -105,7 +105,10 @@ find ../ProdKeys -name '*.keys' -type f -exec cp -f {} "$system_dir/" \;
 # Same for firmware: copy every .nca regardless of any nesting.
 find ../Firmware -name '*.nca' -type f -exec cp -f {} "$registered_dir/" \;
 
-# Reorganize firmware NCAs into <id>.nca/00 directory structure
+# Reorganize firmware NCAs into <id>.nca/00 directory structure.
+# Move each file out of the way FIRST: firmware ships both <id>.nca and
+# <id>.cnmt.nca, so creating <id>.nca/ would otherwise collide with the
+# not-yet-moved <id>.nca file (mkdir: File exists).
 cd "$registered_dir"
 for file in *; do
     nca=$(basename "$file")
@@ -116,8 +119,9 @@ for file in *; do
     else
         continue
     fi
+    mv "$file" ".nca_tmp"
     mkdir -p "$xxx.nca"
-    mv "$file" "$xxx.nca/00"
+    mv ".nca_tmp" "$xxx.nca/00"
 done
 cd - >/dev/null
 
