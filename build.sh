@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # ============================================================
-# Build a portable Ryujinx (bundled prodkeys + firmware)
+# Build portable Ryujinx packages:
+#   - ryujinx-<tag>-win_x64.zip            base (no prodkeys / firmware)
+#   - ryujinx-<tag>-<firmware>-win_x64.zip per-firmware variant (keys + firmware)
 # Usage: ./build.sh [version]   # defaults to DEFAULT_VERSION
 # ============================================================
 
@@ -106,10 +108,9 @@ log "downloading Ryujinx: $filename"
 curl -fL --retry 3 -o "dist/$filename" "$download_url"
 
 # ---------- 5. Extract ----------
-resolve_urls "$TARGET_VERSION"
-rm -rf ryujinx ryujinx-win ProdKeys Firmware
-unzip -q "dist/$prodkeys_zip" -d ProdKeys
-unzip -q "dist/$firmware_zip" -d Firmware
+# Prodkeys / firmware are unpacked per-version inside the variant loop
+# (step 9), so only Ryujinx itself is extracted here.
+rm -rf ryujinx ryujinx-win
 unzip -q "dist/$filename" -d ryujinx-win
 
 mv ./ryujinx-win/publish ./ryujinx
@@ -127,67 +128,90 @@ pid=$!
 sleep 10
 kill "$pid" 2>/dev/null || true
 
-# ---------- 7. Install prodkeys / firmware ----------
-system_dir="./portable/system"
-registered_dir="./portable/bis/system/Contents/registered"
-mkdir -p "$system_dir" "$registered_dir"
-
-# Prodkeys zips may nest the keys in subfolders (e.g. Keys-22.1.0/),
-# so find *.keys recursively instead of assuming a flat layout.
-find ../ProdKeys -name '*.keys' -type f -exec cp -f {} "$system_dir/" \;
-
-# Same for firmware: copy every .nca regardless of any nesting.
-find ../Firmware -name '*.nca' -type f -exec cp -f {} "$registered_dir/" \;
-
-# Reorganize firmware NCAs into the <id>.nca/00 layout Ryujinx expects
-# for installed firmware titles.
-#
-# Why move each file away FIRST? Firmware ships BOTH <id>.nca and
-# <id>.cnmt.nca for the same title. If we created <id>.nca/ while the
-# plain <id>.nca file still exists, mkdir would fail with "File exists"
-# (a file and a folder cannot share the same name). Relocating the file
-# to a hidden temp name first sidesteps that entirely.
-# .nca_tmp is safe to reuse every iteration: real NCA names always end
-# in ".nca", so the temp name can never collide with an actual file.
-cd "$registered_dir"
-for file in *; do
-    nca=$(basename "$file")
-
-    # Derive the title ID from the NCA filename:
-    #   <id>.cnmt.nca  ->  <id>   (control metadata; strip ".cnmt")
-    #   <id>.nca       ->  <id>   (regular content; strip ".nca")
-    # Anything else (subfolders, non-NCA files) is skipped.
-    if [[ $nca == *.cnmt.nca ]]; then
-        xxx=${nca%.cnmt.nca}
-    elif [[ $nca == *.nca ]]; then
-        xxx=${nca%.nca}
-    else
-        continue
-    fi
-
-    # 1. Move the file out of the way (prevents the mkdir collision above)
-    mv "$file" ".nca_tmp"
-    # 2. Create the per-title folder
-    mkdir -p "$xxx.nca"
-    # 3. Move the file into place as "00" (the content index inside a title)
-    mv ".nca_tmp" "$xxx.nca/00"
-done
-cd - >/dev/null
-
-# ---------- 8. Tweak the config ----------
+# ---------- 7. Tweak the config ----------
+# Applied to the base dir once; every variant is a copy of it, so all
+# packages share the same settings (game dirs, Vulkan backend).
 config="./portable/Config.json"
 sed -i 's/"game_dirs": \[\]/"game_dirs": ["portable\/games"]/g' "$config"
 sed -i 's/"graphics_backend": "[^"]*"/"graphics_backend": "Vulkan"/g' "$config"
 
-# ---------- 9. Repack ----------
+# ---------- 8. Package the base (no prodkeys / firmware) ----------
 cd ..
 rm -f "dist/$filename"
 (cd ryujinx && zip -r -q "../dist/$filename" .)
-ls -lh dist
+log "base package: $filename"
+
+# ---------- 9. Package per-firmware variants ----------
+# Each variant bundles one firmware version's prodkeys + firmware and is
+# named ryujinx-<tag>-<firmware>-win_x64.zip. Built from a copy of the
+# base package so the portable config stays identical everywhere.
+for version in "${VERSIONS[@]}"; do
+    resolve_urls "$version"
+    variant="ryujinx-${latest_tag}-${version}-win_x64.zip"
+    log "building variant: $variant"
+
+    rm -rf "ryujinx-$version" ProdKeys Firmware
+    cp -r ryujinx "ryujinx-$version"
+    unzip -q "dist/$prodkeys_zip" -d ProdKeys
+    unzip -q "dist/$firmware_zip" -d Firmware
+
+    system_dir="ryujinx-$version/portable/system"
+    registered_dir="ryujinx-$version/portable/bis/system/Contents/registered"
+    mkdir -p "$system_dir" "$registered_dir"
+
+    # Prodkeys zips may nest the keys in subfolders (e.g. Keys-22.1.0/),
+    # so find *.keys recursively instead of assuming a flat layout.
+    find ProdKeys -name '*.keys' -type f -exec cp -f {} "$system_dir/" \;
+
+    # Same for firmware: copy every .nca regardless of any nesting.
+    find Firmware -name '*.nca' -type f -exec cp -f {} "$registered_dir/" \;
+
+    # Reorganize firmware NCAs into the <id>.nca/00 layout Ryujinx expects
+    # for installed firmware titles.
+    #
+    # Why move each file away FIRST? Firmware ships BOTH <id>.nca and
+    # <id>.cnmt.nca for the same title. If we created <id>.nca/ while the
+    # plain <id>.nca file still exists, mkdir would fail with "File exists"
+    # (a file and a folder cannot share the same name). Relocating the file
+    # to a hidden temp name first sidesteps that entirely.
+    # .nca_tmp is safe to reuse every iteration: real NCA names always end
+    # in ".nca", so the temp name can never collide with an actual file.
+    (
+        cd "$registered_dir"
+        for file in *; do
+            nca=$(basename "$file")
+
+            # Derive the title ID from the NCA filename:
+            #   <id>.cnmt.nca  ->  <id>   (control metadata; strip ".cnmt")
+            #   <id>.nca       ->  <id>   (regular content; strip ".nca")
+            # Anything else (subfolders, non-NCA files) is skipped.
+            if [[ $nca == *.cnmt.nca ]]; then
+                xxx=${nca%.cnmt.nca}
+            elif [[ $nca == *.nca ]]; then
+                xxx=${nca%.nca}
+            else
+                continue
+            fi
+
+            # 1. Move the file out of the way (prevents the mkdir collision above)
+            mv "$file" ".nca_tmp"
+            # 2. Create the per-title folder
+            mkdir -p "$xxx.nca"
+            # 3. Move the file into place as "00" (the content index inside a title)
+            mv ".nca_tmp" "$xxx.nca/00"
+        done
+    )
+
+    rm -f "dist/$variant"
+    (cd "ryujinx-$version" && zip -r -q "../dist/$variant" .)
+    rm -rf "ryujinx-$version" ProdKeys Firmware
+    log "variant done: $variant"
+done
 
 # ---------- 10. Output GitHub Actions variables ----------
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     echo "tag=$latest_tag" >> "$GITHUB_OUTPUT"
 fi
 
-log "done: dist/$filename"
+ls -lh dist
+log "done"
