@@ -47,8 +47,11 @@ resolve_urls() {
             exit 1
             ;;
     esac
-    prodkeys_zip="${prodkeys_url##*/}"
-    firmware_zip="${firmware_url##*/}"
+    # Unified artifact names: upstream filenames are inconsistent (e.g. the
+    # 21.0.0 keys zip ships as "Prodkeys.NET_v21-0-0.zip"), so always save
+    # under one canonical style regardless of what the server hosts.
+    prodkeys_zip="ProdKeys.NET-v${version}.zip"
+    firmware_zip="Firmware.${version}.zip"
 }
 
 # ---------- 1. Resolve the latest Ryujinx version ----------
@@ -78,6 +81,10 @@ log "target prodkeys / firmware version: $TARGET_VERSION"
 mkdir -p dist
 for version in "${VERSIONS[@]}"; do
     resolve_urls "$version"
+    # Drop stale zips saved under the old URL-derived names from earlier
+    # runs (e.g. Prodkeys.NET_v21-0-0.zip) so dist/ only holds canonical
+    # names. Firmware names already match, so this is a no-op for them.
+    rm -f "dist/${prodkeys_url##*/}" "dist/${firmware_url##*/}"
     log "downloading prodkeys ($version): $prodkeys_zip"
     curl -fL --retry 3 -o "dist/$prodkeys_zip" "$prodkeys_url"
     log "downloading firmware ($version): $firmware_zip"
